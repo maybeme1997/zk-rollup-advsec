@@ -6,3 +6,22 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
+rand = "0.8.5"
+mimc-rs = "0.0.2"
+num-bigint_1 = { package = "num-bigint", version = "0.2.6" }
+num-bigint_2 = { package = "num-bigint", version = "0.4.3" }
+num-traits = { version = "=0.2.15", default-features = false }
+
+ark-circom = { git = "https://github.com/gakonst/ark-circom.git" }
+ark-bn254 = { version = "=0.4.0" }
+ark-groth16 = { version = "=0.4.0", default-features = false, features = ["parallel"] }
+ark-crypto-primitives = { version = "=0.4.0" }
+color-eyre = "=0.6.2"
+
+ark-ec = { version = "=0.4.1", default-features = false, features = ["parallel"] }
+ark-ff = { version = "=0.4.1", default-features = false, features = ["parallel", "asm"] }
+ark-std = { version = "=0.4.0", default-features = false, features = ["parallel"] }
+ark-poly = { version = "=0.4.1", default-features = false, features = ["parallel"] }
+ark-relations = { version = "=0.4.0", default-features = false }
+ark-serialize = { version = "=0.4.1", default-features = false }
