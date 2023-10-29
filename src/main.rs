@@ -1,3 +1,55 @@
+/// # Ethereum Zero-Knowledge Proofs Utility
+///
+/// ## Overview:
+/// This program provides a tool for creating a zero-knowledge proof for Ethereum transactions.
+/// It utilizes zkSNARKs to demonstrate that a sender has made a transaction without revealing
+/// the details of the transaction.
+///
+/// ## Dependencies:
+/// - **std**: Standard library.
+/// - **rand**: Random number generation.
+/// - **ed25519_dalek**: Ed25519 signing and verifying.
+/// - **mimc**: MiMC hash function.
+/// - **builder**: Tool for building zkSNARK circuits.
+/// - **ark_bn254**: BN-254 elliptic curve.
+/// - **num_bigint**: BigInt support library.
+/// - **ark_std**: Arkworks library.
+/// - **color_eyre**: Error report handler.
+/// - **ark_crypto_primitives**: Arkworks crypto primitives.
+/// - **ark_ff**: Arkworks field arithmetic.
+/// - **ark_groth16**: Groth16 SNARK proof.
+/// - **ed25519_compact**: Ed25519 signing and verifying.
+///
+/// ## Constants:
+/// - **SENDER_ETH**: The balance of Ethereum for the sender - 500.
+/// - **RECEIVER_ETH**: The balance of Ethereum for the receiver - 0.
+///
+/// ## Functions:
+///
+/// 1. **main**:
+///    - Initiating our program.
+///      - Generate sender and receiver key pairs.
+///      - Request the user to input for the transaction.
+///      - Hash the sender and receiver accounts and calculate the accounts roots.
+///      - Sign and verify the transaction.
+///      - Load the zkSNARK circuit and create a proof.
+///      - Verify the proof.
+///
+/// 2. **read_u64_input**:
+///    - Reads an input from the console.
+///
+/// 3. **hash_account**:
+///    - Computes the hash of an account given its public key and balance.
+///
+/// 4. **root_hash**:
+///    - Computes the MiMC hash of two combined hashes.
+///
+/// 5. **hash_transaction**:
+///    - Computes the MiMC hash of a transaction given the sender key, receiver key, and amount.
+///
+/// 6. **convert_bytes**:
+///    - Converts a byte array into a `BigInt`.
+
 // External dependencies
 use std::error::Error;
 use rand::rngs::OsRng;
