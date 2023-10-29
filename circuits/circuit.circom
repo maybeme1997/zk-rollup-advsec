@@ -1,8 +1,8 @@
 pragma circom 2.0.0;
 include "./check_leaf_existence.circom";
 include "./get_merkle_root.circom";
-include "../../node_modules/circomlib/circuits/mimc.circom";
-include "../../node_modules/circomlib/circuits/eddsamimc.circom";
+include "./node_modules/circomlib/circuits/mimc.circom";
+include "./node_modules/circomlib/circuits/eddsamimc.circom";
 
 template ProcessTx(k){
     // k is the depth of accounts tree
@@ -10,8 +10,6 @@ template ProcessTx(k){
     // accounts tree info
     signal input accounts_root;
     signal input intermediate_root;
-    // signal input accounts_pubkey[2**k][2];
-    // signal input accounts_balance[2**k];
 
     // transactions info
     signal input sender_pubkey[2];
@@ -19,9 +17,9 @@ template ProcessTx(k){
     signal input receiver_pubkey[2];
     signal input receiver_balance;
     signal input amount;
-    signal input signature_R8x;
-    signal input signature_R8y;
-    signal input signature_S;
+    signal input signature_r8x;
+    signal input signature_r8y;
+    signal input signature_s;
     signal input sender_proof[k];
     signal input sender_proof_pos[k];
     signal input receiver_proof[k];
@@ -55,9 +53,9 @@ template ProcessTx(k){
     signatureCheck.enabled <== enabled;
     signatureCheck.Ax <== sender_pubkey[0];
     signatureCheck.Ay <== sender_pubkey[1];
-    signatureCheck.R8x <== signature_R8x;
-    signatureCheck.R8y <== signature_R8y;
-    signatureCheck.S <== signature_S;
+    signatureCheck.R8x <== signature_r8x;
+    signatureCheck.R8y <== signature_r8y;
+    signatureCheck.S <== signature_s;
     signatureCheck.M <== msg.out;
 
     // debit sender account and hash new sender leaf
