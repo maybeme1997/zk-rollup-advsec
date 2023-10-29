@@ -1,8 +1,8 @@
 pragma circom 2.0.0;
 include "./check_leaf_existence.circom";
 include "./get_merkle_root.circom";
-include "./node_modules/circomlib/circuits/mimc.circom";
-include "./node_modules/circomlib/circuits/eddsamimc.circom";
+include "../../node_modules/circomlib/circuits/mimc.circom";
+include "../../node_modules/circomlib/circuits/eddsamimc.circom";
 
 template ProcessTx(k){
     // k is the depth of accounts tree
@@ -10,10 +10,10 @@ template ProcessTx(k){
     // accounts tree info
     signal input accounts_root;
     signal input intermediate_root;
-    signal input accounts_pubkey[2**k][2];
-    signal input accounts_balance[2**k];
+    // signal input accounts_pubkey[2**k][2];
+    // signal input accounts_balance[2**k];
 
-    // transactions info 
+    // transactions info
     signal input sender_pubkey[2];
     signal input sender_balance;
     signal input receiver_pubkey[2];
@@ -27,7 +27,7 @@ template ProcessTx(k){
     signal input receiver_proof[k];
     signal input receiver_proof_pos[k];
     signal input enabled;
-    
+
     signal output new_accounts_root;
 
     // verify sender account exists in accounts_root
@@ -48,7 +48,7 @@ template ProcessTx(k){
     msg.in[1] <== sender_pubkey[1];
     msg.in[2] <== receiver_pubkey[0];
     msg.in[3] <== receiver_pubkey[1];
-    msg.in[4] <== amount; 
+    msg.in[4] <== amount;
 
     // check that transaction was signed by sender
     component signatureCheck = EdDSAMiMCVerifier();
@@ -66,7 +66,7 @@ template ProcessTx(k){
     newSenderLeaf.in[0] <== sender_pubkey[0];
     newSenderLeaf.in[1] <== sender_pubkey[1];
     newSenderLeaf.in[2] <== (sender_balance - amount);
-    
+
     component compute_intermediate_root = GetMerkleRoot(k);
     compute_intermediate_root.leaf <== newSenderLeaf.out;
     for(var i = 0; i < k; i++){

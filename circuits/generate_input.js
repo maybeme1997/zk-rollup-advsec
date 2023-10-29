@@ -10,9 +10,11 @@ async function main() {
   
   // setup accounts
   const alicePrvKey = Buffer.from("1".toString().padStart(64, "0"), "hex");
+  console.log(alicePrvKey);
   const bobPrvKey = Buffer.from("2".toString().padStart(64, "0"), "hex");
   const alicePubKey = eddsa.prv2pub(alicePrvKey);
   const bobPubKey = eddsa.prv2pub(bobPrvKey);
+
 
   const alice = {
     pubkey: alicePubKey,
@@ -23,6 +25,10 @@ async function main() {
     pubkey: bobPubKey,
     balance: 0,
   };
+
+  console.log(bob.pubkey[0]);
+  console.log(bob.pubkey[1]);
+
   // setup accounts and root hash
   const aliceHash = mimc7.multiHash(
     [alice.pubkey[0], alice.pubkey[1], alice.balance],

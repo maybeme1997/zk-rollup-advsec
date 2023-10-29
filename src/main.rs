@@ -1,22 +1,23 @@
 use std::error::Error;
 use rand::rngs::OsRng;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
-use mimc_rs::Mimc7;
+mod mimc;
+mod builder;
 
 use std::io;
 use std::io::Write;
-use std::path::Path;
 use ark_bn254::Bn254;
-use ark_circom::{CircomBuilder, CircomConfig};
-use num_bigint_1;
-use num_bigint_2;
+use num_bigint;
 
 use ark_std::rand::thread_rng;
 use color_eyre::Result;
 
 use ark_crypto_primitives::snark::SNARK;
+use ark_ff::BigInt;
 use ark_groth16::Groth16;
-use num_bigint_1::{Sign, ToBigInt};
+use ed25519_compact::{KeyPair, Seed};
+use ed25519_dalek::ed25519::signature::rand_core::RngCore;
+use crate::builder::CircomConfig;
 
 type GrothBn = Groth16<Bn254>;
 
@@ -25,12 +26,17 @@ const RECEIVER_ETH: u32 = 0;
 
 fn main() -> Result<(), Box<dyn Error>> {
 
-    // Generate a sender and receiver keypair
-    let mut csprng = OsRng{};
-    let sender_key = SigningKey::generate(&mut csprng);
-    let receiver_key = SigningKey::generate(&mut csprng);
+    let key_pair = KeyPair::from_seed(Seed::default());
 
-    println!("Sender public key: {:?}", sender_key.verifying_key().to_bytes().len());
+
+    // Generate a sender and receiver keypair
+    let mut csprng1 = OsRng;
+    let sender_key = SigningKey::generate(&mut csprng1);
+
+    let mut csprng2 = OsRng;
+    let receiver_key = SigningKey::generate(&mut csprng2);
+
+    println!("Sender public key: {:?}", convert_bytes(sender_key.verifying_key().to_bytes()).to_string());
 
     // Ask for the amount of ETH for the transaction
     print!("Sender ETH: {}\n", SENDER_ETH);
@@ -46,8 +52,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Hash the transaction, sign it and verify the signature
     let transaction_arr = hash_transaction(&sender_key.verifying_key(), &receiver_key.verifying_key(), send_eth_amount)?;
-    let signature = sender_key.sign(&transaction_arr);
-    let verified = sender_key.verify(&transaction_arr, &signature);
+    let signature = sender_key.sign(&transaction_arr.to_signed_bytes_be());
+    let verified = sender_key.verify(&transaction_arr.to_signed_bytes_be(), &signature);
     println!("Signature verified: {:?}", verified.is_ok());
 
     // Calculate the new account hashes after the transaction
@@ -65,26 +71,34 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     // Insert our public inputs as key value pairs
-    let mut builder = CircomBuilder::new(cfg);
-    builder.push_input("accounts_root", convert_bigint(accounts_root));
-    builder.push_input("intermediate_root", convert_bigint(intermediate_accounts_root));
-    // builder.push_input("accounts_pubkey", [
-    //     convert_bytes(sender_key.verifying_key().to_bytes()),
-    //     convert_bytes(receiver_key.verifying_key().to_bytes()),
-    // ]);
-    // builder.push_input("accounts_balance", [SENDER_ETH, RECEIVER_ETH]);
-    // builder.push_input("sender_pubkey", [sender_key.verifying_key().to_bytes().to_vec()].into());
-    // builder.push_input("sender_balance", SENDER_ETH.into());
-    // builder.push_input("receiver_pubkey", [receiver_key.verifying_key().to_bytes().to_vec()].into());
-    // builder.push_input("receiver_balance", RECEIVER_ETH);
-    // builder.push_input("amount", send_eth_amount);
-    // builder.push_input("signature_R8x", signature.r_bytes().into());
+    let mut builder = builder::CircomBuilder::new(cfg);
+    builder.push_input("accounts_root", accounts_root);
+    builder.push_input("intermediate_root", intermediate_accounts_root);
+    builder.push_input("sender_pubkey", convert_bytes(sender_key.verifying_key().to_bytes()));
+    builder.push_input("sender_balance", num_bigint::BigInt::from(SENDER_ETH));
+    builder.push_input("receiver_pubkey", convert_bytes(receiver_key.verifying_key().to_bytes()));
+    builder.push_input("receiver_balance", num_bigint::BigInt::from(RECEIVER_ETH));
+    builder.push_input("amount", num_bigint::BigInt::from(send_eth_amount));
+    builder.push_input("signature_R8x", signature.r_bytes());
     // builder.push_input("signature_S", signature.s_bytes().into());
-    // builder.push_input("sender_proof", [sender_hash].into());
-    // builder.push_input("sender_proof_pos", [0].into());
-    // builder.push_input("receiver_proof", [receiver_hash].into());
-    // builder.push_input("receiver_proof_pos", [1].into());
-    // builder.push_input("enabled", 1.into());
+
+
+    let mut sender_proof = Vec::new();
+    sender_proof.push(sender_hash);
+    builder.push_input_vec("sender_proof", sender_proof);
+
+    let mut receiver_proof_pos = Vec::new();
+    receiver_proof_pos.push(num_bigint::BigInt::from(0));
+    builder.push_input_vec("sender_proof_pos", receiver_proof_pos);
+
+    let mut receiver_proof = Vec::new();
+    receiver_proof.push(receiver_hash);
+    builder.push_input_vec("receiver_proof", receiver_proof);
+
+    let mut receiver_proof_pos: Vec<num_bigint::BigInt> = Vec::new();
+    receiver_proof_pos.push(num_bigint::BigInt::from(1));
+    builder.push_input_vec("receiver_proof_pos", receiver_proof_pos);
+    builder.push_input("enabled", 1);
 
     // Create an empty instance for setting it up
     let circom = builder.setup();
@@ -116,31 +130,30 @@ fn read_u64_input() -> Result<u32, Box<dyn Error>> {
     Ok(parsed_input)
 }
 
-fn hash_account(key: &VerifyingKey, balance: u32) -> Result<num_bigint_1::BigInt, Box<dyn Error>> {
-    let mut hasher = Mimc7::new();
-    let mut account_vec = key.to_bytes().iter().map(|&b| b.into()).collect::<Vec<_>>();
-    account_vec.push(balance.into());
+fn hash_account(key: &VerifyingKey, balance: u32) -> Result<num_bigint::BigInt, Box<dyn Error>> {
+    let mut hasher = mimc::Mimc7::new();
+    let mut account_vec: Vec<num_bigint::BigInt> = Vec::new();
+    account_vec.push(convert_bytes(key.to_bytes()));
+    account_vec.push(num_bigint::BigInt::from(balance));
     Ok(hasher.hash(account_vec)?)
 }
 
-fn root_hash(hash1: &num_bigint_1::BigInt, hash2: &num_bigint_1::BigInt) -> Result<num_bigint_1::BigInt, Box<dyn Error>> {
-    let mut hasher = Mimc7::new();
+fn root_hash(hash1: &num_bigint::BigInt, hash2: &num_bigint::BigInt) -> Result<num_bigint::BigInt, Box<dyn Error>> {
+    let mut hasher = mimc::Mimc7::new();
     let account_hashes = vec![hash1.clone(), hash2.clone()];
     Ok(hasher.hash(account_hashes)?)
 }
 
-fn hash_transaction(sender_key: &VerifyingKey, receiver_key: &VerifyingKey, amount: u32) -> Result<Vec<u8>, Box<dyn Error>> {
-    let mut hasher = Mimc7::new();
-    let mut transaction_vec = sender_key.to_bytes().iter().chain(receiver_key.to_bytes().iter()).map(|&b| num_bigint_1::BigInt::from(b)).collect::<Vec<_>>();
-    transaction_vec.push(num_bigint_1::BigInt::from(amount));
-    Ok(hasher.hash(transaction_vec).unwrap().to_bytes_be().1)
+fn hash_transaction(sender_key: &VerifyingKey, receiver_key: &VerifyingKey, amount: u32) -> Result<num_bigint::BigInt, Box<dyn Error>> {
+    let mut hasher = mimc::Mimc7::new();
+    let mut transaction_vec = Vec::new();
+    transaction_vec.push(convert_bytes(sender_key.to_bytes()));
+    transaction_vec.push(convert_bytes(receiver_key.to_bytes()));
+    transaction_vec.push(num_bigint::BigInt::from(amount));
+    Ok(hasher.hash(transaction_vec)?)
 }
 
-fn convert_bigint(bigint1: num_bigint_1::BigInt) -> num_bigint_2::BigInt {
-    num_bigint_2::BigInt::from_signed_bytes_be(&*bigint1.to_signed_bytes_be())
-}
-
-// Convert this byte array to a BigInt
-fn convert_bytes(bytes: [u8; 32]) -> num_bigint_2::BigInt {
-    num_bigint_2::BigInt::from_bytes_be(num_bigint_2::Sign::Plus, &*bytes.to_vec())
+// Convert this byte array to a BigInt v0.2.6
+fn convert_bytes(bytes: [u8; 32]) -> num_bigint::BigInt {
+    num_bigint::BigInt::from_bytes_be(num_bigint::Sign::Plus, &*bytes.to_vec())
 }

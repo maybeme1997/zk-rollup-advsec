@@ -9,8 +9,7 @@ edition = "2021"
 ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
 rand = "0.8.5"
 mimc-rs = "0.0.2"
-num-bigint_1 = { package = "num-bigint", version = "0.2.6" }
-num-bigint_2 = { package = "num-bigint", version = "0.4.3" }
+num-bigint = "0.4.3"
 num-traits = { version = "=0.2.15", default-features = false }
 
 ark-circom = { git = "https://github.com/gakonst/ark-circom.git" }
@@ -25,3 +24,5 @@ ark-std = { version = "=0.4.0", default-features = false, features = ["parallel"
 ark-poly = { version = "=0.4.1", default-features = false, features = ["parallel"] }
 ark-relations = { version = "=0.4.0", default-features = false }
 ark-serialize = { version = "=0.4.1", default-features = false }
+tiny-keccak = "1.5.0"
+ed25519-compact = "2"
