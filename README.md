@@ -19,3 +19,19 @@ Documentation: **Medium**
 - [2] The Rust Programming Language, https://doc.rust-lang.org/book/
 - [3] Rust Blockchain Tutorial, https://github.com/ddimaria/rust-blockchain-tutorial
 - [4] zk-rollup tutorial, https://github.com/tanpx12/zk-rollup-tutorial
+
+
+## Install & Run 
+Make sure that Rust and Node are installed.
+
+First go into to the circuits directory and compile the ciruit. Download the latest version of circom from here https://github.com/iden3/circom
+
+    cd circuits
+    npm install
+    [your circom executable here] circuit.circom --wasm --r1cs --json
+
+Now go back into the main folder and run:
+    
+    cargo run
+
+This will set up the proof and verify the proof based on the generated inputs
