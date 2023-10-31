@@ -21,5 +21,17 @@ Documentation: **Medium**
 - [4] zk-rollup tutorial, https://github.com/tanpx12/zk-rollup-tutorial
 
 
-115792089237316195423570985008687907853269984665640564039457584007913129639935
-73293035828673443552277751335928948536762609063729348508876623823786791875742475200385636
+## Install & Run 
+Make sure that Rust and Node are installed.
+
+First go into to the circuits directory and compile the ciruit. Download the latest version of circom from here https://github.com/iden3/circom
+
+    cd circuits
+    npm install
+    [your circom executable here] circuit.circom --wasm --r1cs --json
+
+Now go back into the main folder and run:
+    
+    cargo run
+
+This will set up the proof and verify the proof based on the generated inputs
