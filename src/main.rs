@@ -3,17 +3,20 @@ use ed25519_dalek::{Signer, VerifyingKey};
 mod mimc;
 mod builder;
 
-use std::io;
+use std::{fs, io};
 use std::io::Write;
 use std::str::FromStr;
-use ark_bn254::Bn254;
+use ark_bn254::{Bn254, G1Affine, G2Affine};
 use num_bigint;
 
 use ark_std::rand::thread_rng;
 use color_eyre::Result;
 
 use ark_crypto_primitives::snark::SNARK;
-use ark_groth16::Groth16;
+use ark_ec::AffineRepr;
+use ark_ff::{BigInt, BigInteger};
+use ark_groth16::{Groth16, ProvingKey};
+use color_eyre::owo_colors::OwoColorize;
 use ed25519_dalek::ed25519::signature::rand_core::RngCore;
 use num_traits::Num;
 use crate::builder::CircomConfig;
@@ -107,6 +110,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut rng = thread_rng();
     let params = GrothBn::generate_random_parameters_with_reduction(circom, &mut rng)?;
 
+    // Create the verifier.sol file
+    create_verifier_sol(&params);
+
     // Get the populated instance of the circuit with the witness
     println!("Generating witness and inputs...");
     let circom = builder.build()?;
@@ -116,14 +122,43 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Generating proof...");
     let proof = GrothBn::prove(&params, circom, &mut rng)?;
 
+
+    let ax = format_big_int(proof.a.x().unwrap().0);
+    let ay = format_big_int(proof.a.y().unwrap().0);
+
+    let bx_c0 = format_big_int(proof.b.x().unwrap().c0.0);
+    let bx_c1 = format_big_int(proof.b.x().unwrap().c1.0);
+
+    let by_c0 = format_big_int(proof.b.y().unwrap().c0.0);
+    let by_c1 = format_big_int(proof.b.y().unwrap().c1.0);
+
+    let cx = format_big_int(proof.c.x().unwrap().0);
+    let cy = format_big_int(proof.c.y().unwrap().0);
+
+    let input = format_big_int(inputs[0].0);
+
+    println!("------- Proof -------");
+    println!("[\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"]", ax, ay, bx_c0, bx_c1, by_c0, by_c1, cx, cy);
+    println!("------- Inputs -------");
+    println!("[\"{}\"]", input);
+
+
     // Check that the proof is valid
     println!("Verifying proof...");
     let pvk = GrothBn::process_vk(&params.vk)?;
     let verified = GrothBn::verify_with_processed_vk(&pvk, &inputs, &proof)?;
 
-    println!("Proof is valid: {}", verified);
+    println!("Proof is valid: {}", verified.to_string());
 
     Ok(())
+}
+
+fn format_big_int(bigint: BigInt<4>) -> String {
+    let mut hex = format!("{:X}", bigint);
+    if hex.len() % 2 != 0 {
+        hex = format!("0{}", hex);
+    }
+    format!("0x{}", hex)
 }
 
 fn read_u64_input() -> Result<u32, Box<dyn Error>> {
@@ -160,3 +195,100 @@ fn hash_transaction(sender_key: &VerifyingKey, receiver_key: &VerifyingKey, amou
 fn convert_bytes(bytes: [u8; 32]) -> num_bigint::BigInt {
     num_bigint::BigInt::from_bytes_be(num_bigint::Sign::Plus, &*bytes.to_vec())
 }
+
+fn p1_to_str(p: G1Affine) -> String {
+
+    if p.is_zero() {
+        return String::from("<POINT_AT_INFINITY>");
+    }
+
+    let x = p.x().unwrap().0;
+
+    let y = p.y().unwrap().0;
+
+    format!("uint256({}), uint256({})", x, y)
+}
+
+fn p2_to_str(p: G2Affine) -> String {
+
+    if p.is_zero() {
+        return String::from("<POINT_AT_INFINITY>");
+    }
+
+    let x_c0 = p.x().unwrap().c0.0;
+    let x_c1 = p.x().unwrap().c1.0;
+    let y_c0 = p.y().unwrap().c0.0;
+    let y_c1 = p.y().unwrap().c1.0;
+
+    format!("[uint256({}), uint256({})], [uint256({}), uint256({})]", x_c1, x_c0, y_c1, y_c0)
+}
+
+fn create_verifier_sol(params: &ProvingKey<Bn254>) {
+    let bytes = include_bytes!("verifier_groth.sol");
+
+    let mut template = String::from_utf8_lossy(bytes);
+
+    let template = template.replace("<%vk_alfa1%>", &p1_to_str(params.vk.alpha_g1));
+    let template = template.replace("<%vk_beta2%>", &p2_to_str(params.vk.beta_g2));
+    let template = template.replace("<%vk_gamma2%>", &p2_to_str(params.vk.gamma_g2));
+    let template = template.replace("<%vk_delta2%>", &p2_to_str(params.vk.delta_g2));
+
+    let template = template.replace("<%vk_ic_length%>", &params.vk.gamma_abc_g1.len().to_string());
+    let template = template.replace("<%vk_input_length%>", &(params.vk.gamma_abc_g1.len() - 1).to_string());
+
+    let mut vi = String::from("");
+    for i in 0..params.vk.gamma_abc_g1.len() {
+        vi = format!("{}{}vk.IC[{}] = Pairing.G1Point({});\n", vi,
+                     if vi.is_empty() { "" }
+                     else { "        " }, i, &p1_to_str(params.vk.gamma_abc_g1[i])
+        );
+    }
+    let template = template.replace("<%vk_ic_pts%>", &vi);
+
+    fs::write("verification.sol", template).expect("Could not write to file");
+}
+
+
+
+// pub fn create_verifier_sol(params: &Parameters<Bn256>) -> String {
+//     // TODO: use a simple template engine
+//     let bytes = include_bytes!("verifier_groth.sol");
+//     let template = String::from_utf8_lossy(bytes);
+//
+//     let p1_to_str = |p: &<Bn256 as Engine>::G1Affine| {
+//         if p.is_zero() {
+//             // todo: throw instead
+//             return String::from("<POINT_AT_INFINITY>");
+//         }
+//         let xy = p.into_xy_unchecked();
+//         let x = repr_to_big(xy.0.into_repr());
+//         let y = repr_to_big(xy.1.into_repr());
+//         format!("uint256({}), uint256({})", x, y)
+//     };
+//     let p2_to_str = |p: &<Bn256 as Engine>::G2Affine| {
+//         if p.is_zero() {
+//             // todo: throw instead
+//             return String::from("<POINT_AT_INFINITY>");
+//         }
+//         let xy = p.into_xy_unchecked();
+//         let x_c0 = repr_to_big(xy.0.c0.into_repr());
+//         let x_c1 = repr_to_big(xy.0.c1.into_repr());
+//         let y_c0 = repr_to_big(xy.1.c0.into_repr());
+//         let y_c1 = repr_to_big(xy.1.c1.into_repr());
+//         format!("[uint256({}), uint256({})], [uint256({}), uint256({})]", x_c1, x_c0, y_c1, y_c0)
+//     };
+//
+//     let template = template.replace("<%vk_alfa1%>", &*p1_to_str(&params.vk.alpha_g1));
+//     let template = template.replace("<%vk_beta2%>", &*p2_to_str(&params.vk.beta_g2));
+//     let template = template.replace("<%vk_gamma2%>", &*p2_to_str(&params.vk.gamma_g2));
+//     let template = template.replace("<%vk_delta2%>", &*p2_to_str(&params.vk.delta_g2));
+//
+//     let template = template.replace("<%vk_ic_length%>", &*params.vk.ic.len().to_string());
+//     let template = template.replace("<%vk_input_length%>", &*(params.vk.ic.len() - 1).to_string());
+//
+//     let mut vi = String::from("");
+//     for i in 0..params.vk.ic.len() {
+//         vi = format!("{}{}vk.IC[{}] = Pairing.G1Point({});\n", vi, if vi.is_empty() { "" } else { "        " }, i, &*p1_to_str(&params.vk.ic[i]));
+//     }
+//     template.replace("<%vk_ic_pts%>", &*vi)
+// }

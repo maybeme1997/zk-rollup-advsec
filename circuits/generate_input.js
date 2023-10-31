@@ -1,6 +1,7 @@
 const fs = require("fs");
 const {buildBabyjub, buildMimc7, buildEddsa} = require("circomlibjs");
 const wasm_tester = require('circom_tester').wasm
+const prompt = require('prompt-sync')();
 
 async function main() {
     const babyJub = await buildBabyjub();
@@ -17,7 +18,11 @@ async function main() {
     const senderBalance = 500;
     const receiverBalance = 0;
 
-    const amount= 300;
+    console.log("Sender balance: ", senderBalance);
+    console.log("Receiver balance: ", receiverBalance);
+
+    const val = prompt('Amount of money to transfer:');
+    const amount= Number(val);
 
     // setup accounts and root hash
     const senderHash = mimc7.multiHash(
@@ -30,9 +35,9 @@ async function main() {
     );
 
     // Print sender hash
+    console.log("------------------- Sender and receiver hash -------------------");
     console.log(BigInt(F.toObject(senderHash)).toString());
     console.log(BigInt(F.toObject(receiverHash)).toString());
-    console.log(" ------------------- ");
 
     const accounts_root = mimc7.multiHash([senderHash, receiverHash], 1);
 
@@ -81,6 +86,8 @@ async function main() {
         receiver_proof_pos: ["1"],
         enabled: "1"
     };
+
+    console.log("------------------- new root hash -------------------");
     console.log(BigInt(F.toObject(new_root)).toString());
     fs.writeFileSync("./input.json", JSON.stringify(inputs), 'utf-8');
 }

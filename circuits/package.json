@@ -2,6 +2,7 @@
   "dependencies": {
     "circom_tester": "^0.0.19",
     "circomlib": "^2.0.5",
-    "circomlibjs": "^0.1.7"
+    "circomlibjs": "^0.1.7",
+    "prompt-sync": "^4.2.0"
   }
 }
