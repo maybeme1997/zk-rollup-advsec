@@ -1,5 +1,4 @@
 use std::error::Error;
-use rand::rngs::OsRng;
 use ed25519_dalek::{Signer, VerifyingKey};
 mod mimc;
 mod builder;
@@ -54,7 +53,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let receiver_hash = num_bigint::BigInt::from_str(inputs["receiver_proof"][0].as_str().unwrap())?;
     let receiver_hash_pos = num_bigint::BigInt::from_str(inputs["receiver_proof_pos"][0].as_str().unwrap())?;
 
-
     // Load the WASM and R1CS for witness and proof generation
     let cfg = CircomConfig::<Bn254>::new(
         "./circuits/circuit_js/circuit.wasm",
@@ -101,24 +99,29 @@ fn main() -> Result<(), Box<dyn Error>> {
     builder.push_input("enabled", num_bigint::BigInt::from(1));
 
     // Create an empty instance for setting it up
+    println!("Setting up...");
     let circom = builder.setup();
 
     // Run a trusted setup
+    println!("Generating parameters...");
     let mut rng = thread_rng();
     let params = GrothBn::generate_random_parameters_with_reduction(circom, &mut rng)?;
 
     // Get the populated instance of the circuit with the witness
+    println!("Generating witness and inputs...");
     let circom = builder.build()?;
-
     let inputs = circom.get_public_inputs().unwrap();
 
     // Generate the proof
+    println!("Generating proof...");
     let proof = GrothBn::prove(&params, circom, &mut rng)?;
 
     // Check that the proof is valid
+    println!("Verifying proof...");
     let pvk = GrothBn::process_vk(&params.vk)?;
     let verified = GrothBn::verify_with_processed_vk(&pvk, &inputs, &proof)?;
-    assert!(verified);
+
+    println!("Proof is valid: {}", verified);
 
     Ok(())
 }
