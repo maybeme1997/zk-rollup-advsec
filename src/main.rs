@@ -103,24 +103,36 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Create an empty instance for setting it up
     println!("Setting up...");
+    let start = std::time::Instant::now();
     let circom = builder.setup();
+    let end = std::time::Instant::now();
+    println!("Setup time: {} ms", (end - start).as_millis());
 
     // Run a trusted setup
     println!("Generating parameters...");
+    let start = std::time::Instant::now();
     let mut rng = thread_rng();
     let params = GrothBn::generate_random_parameters_with_reduction(circom, &mut rng)?;
+    let end = std::time::Instant::now();
+    println!("Parameter generation time: {} ms", (end - start).as_millis());
 
     // Create the verifier.sol file
     create_verifier_sol(&params);
 
     // Get the populated instance of the circuit with the witness
     println!("Generating witness and inputs...");
+    let start = std::time::Instant::now();
     let circom = builder.build()?;
     let inputs = circom.get_public_inputs().unwrap();
+    let end = std::time::Instant::now();
+    println!("Witness generation time: {} ms", (end - start).as_millis());
 
     // Generate the proof
     println!("Generating proof...");
+    let start = std::time::Instant::now();
     let proof = GrothBn::prove(&params, circom, &mut rng)?;
+    let end = std::time::Instant::now();
+    println!("Proof generation time: {} ms", (end - start).as_millis());
 
 
     let ax = format_big_int(proof.a.x().unwrap().0);
@@ -145,8 +157,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Check that the proof is valid
     println!("Verifying proof...");
+    let start = std::time::Instant::now();
     let pvk = GrothBn::process_vk(&params.vk)?;
     let verified = GrothBn::verify_with_processed_vk(&pvk, &inputs, &proof)?;
+    let end = std::time::Instant::now();
+    println!("Verification time: {} ms", (end - start).as_millis());
 
     println!("Proof is valid: {}", verified.to_string());
 
