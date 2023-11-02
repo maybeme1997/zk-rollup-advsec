@@ -1,24 +1,9 @@
-# Efficient zk-Rollup Implementation in Rust - project 4
-**Abstract**: This project provides an opportunity for students to dig deep into the world of blockchain by
-constructing a zero-knowledge rollup, commonly referred to as zk-rollup [1]. Utilizing the Rust
-programming language [2], students will work on implementing an efficient zk-rollup system that provides
-minimal functionality of such a system. As a part of this project, students will develop the relevant
-Ethereum smart contracts using Solidity to ensure the proper functioning of the zk-rollup system.
-Alternatively, a Rust-based blockchain implementation is available for integration with the rollup, which
-can be accessed in [3]. Additionally, a tutorial detailing the functioning of zk-rollup is provided in [4]. The
-students’ implementation at the very least should mirror the functionality outlined in the provided tutorial.
-Finally, students are expected to document and demonstrate the functionalities of their implemented
-system.
+# Efficient zk-Rollup Implementation in Rust
 
-Implementation: **High**
+This repository contains a simple, single transaction, zero-knowledge rollup made in Rust. 
+We have used various open-source libraries/projects that were already available.
 
-Documentation: **Medium**
-
-**References:**
-- [1] zero-knowledge rollup, https://ethereum.org/en/developers/docs/scaling/zk-rollups/
-- [2] The Rust Programming Language, https://doc.rust-lang.org/book/
-- [3] Rust Blockchain Tutorial, https://github.com/ddimaria/rust-blockchain-tutorial
-- [4] zk-rollup tutorial, https://github.com/tanpx12/zk-rollup-tutorial
+This project was part of an university assignment, so this project should not be used in production environments.
 
 
 ## Install & Run 
@@ -28,6 +13,7 @@ First go into to the circuits directory and compile the ciruit. Download the lat
 
     cd circuits
     npm install
+    node generate_input.js
     [your circom executable here] circuit.circom --wasm --r1cs --json
 
 Now go back into the main folder and run:
@@ -35,3 +21,9 @@ Now go back into the main folder and run:
     cargo run
 
 This will set up the proof and verify the proof based on the generated inputs
+
+
+**References:**
+- [1] zero-knowledge rollup, https://ethereum.org/en/developers/docs/scaling/zk-rollups/
+- [2] The Rust Programming Language, https://doc.rust-lang.org/book/
+- [3] zk-rollup tutorial, https://github.com/rollupnc/RollupNC
