@@ -3,13 +3,13 @@
 This repository contains a simple, single transaction, zero-knowledge rollup made in Rust. 
 We have combined various open-source libraries/projects that were already available.
 
-This project was part of an university assignment, so this project should not be used in production environments.
+This project was part of a university assignment, so this project should not be used in production environments.
 
 
 ## Install & Run 
 Make sure that Rust and Node are installed.
 
-First go into to the circuits directory and compile the ciruit. Download the latest version of circom from here https://github.com/iden3/circom
+First go into to the circuits directory and compile the circuit. Download the latest version of Circom from here https://github.com/iden3/circom
 
     cd circuits
     npm install
